@@ -1,17 +1,25 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 import os
 import sys
 import time
 import subprocess
-
+import uvicorn
 import google.generativeai as genai
-from google.generativeai import files  # <-- Import File API here
+from google.generativeai import files
 
+app = FastAPI()
+
+# Initialize Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     print("Error: GEMINI_API_KEY not found in environment variables.")
     sys.exit(1)
 
 genai.configure(api_key=GEMINI_API_KEY)
+
+class VideoRequest(BaseModel):
+    video_url: str
 
 def download_tiktok_video(video_url: str, output_name: str = "tiktok_video.mp4"):
     print(f"Downloading TikTok video from URL: {video_url}")
@@ -90,18 +98,35 @@ Could not extract recipe - insufficient information
 
     return raw_text
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python extract_recipe.py <TikTok_URL>")
-        sys.exit(1)
+@app.post("/api/extract")
+async def extract_recipe(request: VideoRequest):
+    try:
+        # Download video
+        video_path = download_tiktok_video(request.video_url)
+        
+        try:
+            # Process with Gemini
+            recipe_text = upload_and_extract_recipe(video_path)
+            
+            return {
+                "status": "success",
+                "recipe": recipe_text
+            }
+        finally:
+            # Cleanup downloaded video
+            if os.path.exists(video_path):
+                os.remove(video_path)
+                
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download video: {str(e)}")
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process video: {str(e)}")
 
-    video_url = sys.argv[1]
-    local_video = download_tiktok_video(video_url, "tiktok_video.mp4")
-    final_text = upload_and_extract_recipe(local_video)
-
-    print("\n===== FINAL RECIPE EXTRACTION =====\n")
-    print(final_text)
-    print("\n====================================")
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run(app, host="0.0.0.0", port=8000)

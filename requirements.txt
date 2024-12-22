@@ -1,2 +1,8 @@
 google-generativeai==0.8.3
 yt-dlp==2024.12.13
+fastapi
+uvicorn
+google-generativeai
+yt-dlp
+python-multipart
+pydantic
