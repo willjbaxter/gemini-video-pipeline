@@ -21,6 +21,101 @@ genai.configure(api_key=GEMINI_API_KEY)
 class VideoRequest(BaseModel):
     video_url: str
 
+def parse_recipe_text(raw_text: str) -> dict:
+    """Parse the raw recipe text into frontend-compatible format"""
+    try:
+        lines = raw_text.split('\n')
+        current_section = None
+        
+        recipe_data = {
+            "recipe_overview": {
+                "title": "",
+                "prep_time": "0 minutes",
+                "cook_time": "0 minutes",
+                "servings": 0,
+                "difficulty": "Medium",
+                "cuisine_type": "Unknown"
+            },
+            "ingredients": [],
+            "equipment": [],
+            "instructions": []
+        }
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Parse recipe name and creator
+            if line.startswith('RECIPE NAME:'):
+                recipe_data['recipe_overview']['title'] = line.replace('RECIPE NAME:', '').strip()
+            
+            # Parse time and servings
+            elif 'Total Time:' in line:
+                total_time = line.split('Total Time:')[1].strip()
+                time_value = total_time.split()[0]  # Extract numeric value
+                try:
+                    total_minutes = int(time_value)
+                    # Split total time between prep and cook
+                    recipe_data['recipe_overview']['prep_time'] = f"{total_minutes // 2} minutes"
+                    recipe_data['recipe_overview']['cook_time'] = f"{total_minutes // 2} minutes"
+                except ValueError:
+                    pass
+            
+            elif 'Servings:' in line:
+                servings = line.split('Servings:')[1].strip()
+                if servings.lower() != 'unknown':
+                    try:
+                        recipe_data['recipe_overview']['servings'] = int(servings)
+                    except ValueError:
+                        pass
+
+            # Track current section
+            elif line == 'EQUIPMENT NEEDED:':
+                current_section = 'equipment'
+            elif line == 'INGREDIENTS:':
+                current_section = 'ingredients'
+            elif line == 'INSTRUCTIONS:':
+                current_section = 'instructions'
+            
+            # Parse content based on section
+            elif line.startswith('- ') and current_section == 'equipment':
+                equipment = line.replace('- ', '').strip()
+                recipe_data['equipment'].append(equipment)
+            
+            elif line.startswith('- ') and current_section == 'ingredients':
+                ingredient_line = line.replace('- ', '').strip()
+                parts = ingredient_line.split(':')
+                if len(parts) == 2:
+                    item = parts[0].strip()
+                    details = parts[1].strip().split(',', 1)
+                    amount_str = details[0].strip() if details else 'to taste'
+                    notes = details[1].strip() if len(details) > 1 else ''
+                    
+                    # Split amount into number and unit
+                    import re
+                    amount_match = re.match(r'^([\d./-]+)\s*(.*)$', amount_str)
+                    if amount_match:
+                        amount_num, unit = amount_match.groups()
+                    else:
+                        amount_num, unit = amount_str, None
+                    
+                    recipe_data['ingredients'].append({
+                        'item': item,
+                        'amount': amount_num,
+                        'unit': unit if unit else None,
+                        'notes': notes if notes else None
+                    })
+            
+            elif line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')) and current_section == 'instructions':
+                instruction = line.split('.', 1)[1].strip()
+                recipe_data['instructions'].append(instruction)
+
+        return recipe_data
+    except Exception as e:
+        print(f"Error parsing recipe: {e}")
+        raise ValueError(f"Failed to parse recipe format: {str(e)}")
+
 def download_tiktok_video(video_url: str, output_name: str = "tiktok_video.mp4"):
     print(f"Downloading TikTok video from URL: {video_url}")
     cmd = [
