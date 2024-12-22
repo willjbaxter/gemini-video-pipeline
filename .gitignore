@@ -1,0 +1,13 @@
+# Python cache/venv
+__pycache__/
+*.py[cod]
+.venv/
+env/
+
+# Docker
+*.log
+docker-compose.yml
+
+# Misc
+.idea/
+.vscode/

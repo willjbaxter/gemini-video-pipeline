@@ -1,22 +1,20 @@
 # Gemini Video Pipeline
 
-This repository automates the process of downloading a TikTok video, uploading it to Gemini (Bard) for audiovisual processing, and extracting a detailed cooking recipe from the video.
+This repository automates the process of:
 
-## Features
+1. Downloading a TikTok video (via `yt-dlp` with a custom User-Agent).
+2. Uploading the video to Gemini (Bard) File API.
+3. Prompting for recipe extraction.
+4. Printing the final recipe text or JSON.
 
-- Download TikTok videos using `yt-dlp`
-- Upload video to Gemini File API
-- Prompt Gemini 1.5 Pro to extract a structured recipe
-- Print the final recipe output to console
-
-## Requirements
+## Prerequisites
 
 - Docker
-- A valid Gemini API Key (available as `GEMINI_API_KEY` environment variable)
+- A valid Gemini API Key (set in `GEMINI_API_KEY`).
 
-## Getting Started
+## Setup
 
 1. **Clone** this repo:
    ```bash
-   git clone https://github.com/<your-username>/gemini-video-pipeline.git
+   git clone https://github.com/<your-name>/gemini-video-pipeline.git
    cd gemini-video-pipeline
